@@ -9,9 +9,9 @@
 #define MAIN_H_
 
 #include <avr/pgmspace.h>
-#include "rtc.h"
+#include "rtc8563.h"
 
-#define VERSION  2
+#define VERSION  3
 
 #define CHANNELS 7
 #define MAXPWMCOUNT 100
@@ -53,12 +53,14 @@
 #define UART_OK 		0xFFFF
 #define UART_BADCMD     0x0100
 
+RTC_8563 RTC;
+
 const char *menuIcon[] = {"0","1","2","3","6","4","7","5"};
 
 struct _pwmValue {
 	uint8_t  timeSlot;
 	uint8_t  pwmChannel;
-	uint16_t pwmValue;
+	int16_t pwmValue;
 };
 
 //_pwmValue pwmValues[MAXPWMCOUNT];
@@ -103,7 +105,8 @@ long timeStamp02 = 0;
 long timeStamp03 = 0;
 
 //DATETIME
-struct tm* t = NULL;
+DateTime t = NULL;
+
 
 //UART
 bool isUartData = false;

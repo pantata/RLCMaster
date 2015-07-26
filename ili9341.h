@@ -18,19 +18,19 @@
 #define MADCTL_BGR 0x08
 #define MADCTL_MH  0x04
 
-#define RESET  PD4
-#define CS     PD5
-#define DC     PD6
+#define RESET  PB2
+#define CS     PB0
+#define DC     PB1
 #define LED    PD7
 
-#define TFT_CS_OFF  PORTD |=  (1 << CS)
-#define TFT_CS_ON   PORTD &= ~(1 << CS)
+#define TFT_CS_OFF  PORTB |=  (1 << CS)
+#define TFT_CS_ON   PORTB &= ~(1 << CS)
 
-#define TFT_SET_DATA  PORTD |=  (1 << DC)
-#define TFT_SET_CMD   PORTD &= ~(1 << DC)
+#define TFT_SET_DATA  PORTB |=  (1 << DC)
+#define TFT_SET_CMD   PORTB &= ~(1 << DC)
 
-#define TFT_RST_OFF PORTD |=  (1 << RESET)
-#define TFT_RST_ON  PORTD &= ~(1 << RESET)
+#define TFT_RST_OFF PORTB |=  (1 << RESET)
+#define TFT_RST_ON  PORTB &= ~(1 << RESET)
 
 #define TFT_BL_ON  PORTD |=  (1 << LED)
 #define TFT_BL_OFF PORTD &= ~(1 << LED)
@@ -201,6 +201,6 @@ void tft_fillScr(uint16_t color);
 void tft_setColor(uint8_t r, uint8_t g, uint8_t b);
 uint8_t tft_getFontYsize();
 uint8_t tft_getFontXsize();
-
+void tft_printNumI(long num, int x, int y, int length=0, char filler=' ');
 
 #endif /* ILI9341_H_ */

@@ -34,7 +34,7 @@ public:
   } Button;
 
 public:
-  ClickEncoder(uint8_t stepsPerNotch = 1, bool active = LOW);
+  ClickEncoder(uint8_t stepsPerNotch = 1);
 
   void service(void);
   int16_t getValue(void);
@@ -68,20 +68,13 @@ public:
   }
 
 private:
-  const bool pinsActive;
-  bool doubleClickEnabled;
+   bool doubleClickEnabled;
   bool accelerationEnabled;
   uint8_t steps;
   volatile uint16_t acceleration;
   volatile int16_t delta;
   volatile int16_t last;
   volatile Button button;
-
-
-
 };
-
-
-
 
 #endif /* CLICKENCODER_H_ */

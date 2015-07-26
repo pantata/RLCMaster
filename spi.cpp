@@ -8,17 +8,15 @@
 #include <avr/io.h>
 #include "spi.h"
 
-void spi_init() {
-    //set CS, DC, LED, RESET as output
-    DDRD = DDRD | 0b11110000;
-    // Set SS, MOSI, SCK as Output
-    DDRB = (1<<2)|(1<<5)|(1<<3);
-    //SS na high
-    PORTB |= (1 << PORTB2);
-    // Enable SPI, Set as Master
-    //SPCR |= (1 << MSTR);
-    //SPCR |= (1 << SPE);
+#define SS   PB2
+#define SCK  PB5
+#define MOSI PB3
 
+void spi_init() {
+
+    //SS na high
+    PORTB |= (1 << SS);
+    DDRB |= (1<<SS);
 
     //SPI clock
     SPCR = (SPCR & ~SPI_CLOCK_MASK) | (SPI_CLOCK_DIV4 & SPI_CLOCK_MASK);
@@ -27,6 +25,9 @@ void spi_init() {
     // Enable SPI, Set as Master
     SPCR |= (1 << MSTR);
     SPCR |= (1 << SPE);
+
+    // Set SS, MOSI, SCK as Output
+    DDRB |= (1<<SCK)|(1<<MOSI);
 }
 
 

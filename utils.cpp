@@ -30,8 +30,8 @@
 #define pwr_enable()	power_timer0_enable()
 #define pwr_disable()	power_timer0_disable()
 
-#define SET_TCCRA()	(REG_TCCRA = _BV(BIT_WGM))
-#define SET_TCCRB()	(REG_TCCRB = CLOCKSEL)
+#define SET_TCCRA()	(REG_TCCRA |= _BV(BIT_WGM))
+#define SET_TCCRB()	(REG_TCCRB |= CLOCKSEL)
 
 static volatile millis_t milliseconds;
 
@@ -41,7 +41,7 @@ void millis_init()
 	// Timer settings
 	SET_TCCRA();
 	SET_TCCRB();
-	REG_TIMSK = _BV(BIT_OCIE);
+	REG_TIMSK |= _BV(BIT_OCIE);
 	REG_OCR = ((F_CPU / PRESCALER) / 1000);
 }
 

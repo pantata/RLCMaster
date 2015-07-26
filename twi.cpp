@@ -20,9 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include "twi-lowlevel.h"
 
 #include "twi.h"
+#include "twi-lowlevel.h"
+
 
 // local variables
 uint8_t rxBuffer[BUFFER_LENGTH];

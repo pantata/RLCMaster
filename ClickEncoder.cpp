@@ -11,9 +11,9 @@
 
 // Button configuration (values for 1ms timer service calls)
 //
-#define ENC_BUTTONINTERVAL    20 // check button every x milliseconds, also debouce time
-#define ENC_DOUBLECLICKTIME  600  // second click within 600ms
-#define ENC_HOLDTIME        1200  // report held button after 1.2s
+#define ENC_BUTTONINTERVAL    30L // check button every x milliseconds, also debouce time
+#define ENC_DOUBLECLICKTIME  600L  // second click within 600ms
+#define ENC_HOLDTIME        1200L  // report held button after 1.2s
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
@@ -22,26 +22,26 @@
 #define ENC_ACCEL_INC        25
 #define ENC_ACCEL_DEC         2
 
-#define pinB (PINC & (1<<PC0))
+#define pinB (PINC & (1<<PC1))
 #define pinA (PINC & (1<<PC2))
-#define pinBut (PIND & (1<<PD2))
+#define pinBut (PINC & (1<<PC0))
 
-ClickEncoder::ClickEncoder(uint8_t stepsPerNotch, bool active):
-	pinsActive(active), doubleClickEnabled(true), accelerationEnabled(true),
+ClickEncoder::ClickEncoder(uint8_t stepsPerNotch):
+	doubleClickEnabled(true), accelerationEnabled(true),
 	steps(stepsPerNotch), acceleration(0), delta(0), last(0),  button(Open)
 {
 
-	//PINY NA INPUT
-	DDRC = (1 << PC0);
-	DDRC = (1 << PC2);
-	DDRD = (1 << PD2);
 	//PULLUP ZAPNOUT
-	PORTC |= (1 << PC0); PORTC |= (1 << PC2); PORTD |= (1 << PD2);
+	PORTC |= (1 << PC1) | (1 << PC2) | (1 << PC0);
 
-	if (pinA == 0) {
+	//PINY NA INPUT
+	DDRC |= (1 << PC1) | (1 << PC2) | (1 << PC0);
+
+
+	if (!pinA)  {
 		last = 3;
 	}
-	if (pinB == 0) {
+	if (!pinB) {
 	    last ^=1;
 	}
 }
@@ -63,11 +63,11 @@ void ClickEncoder::service(void) {
 
   int8_t curr = 0;
 
-   if (pinA == 0) {
+   if (!pinA) {
      curr = 3;
    }
 
-   if (pinB == 0) {
+   if (!pinB) {
      curr ^= 1;
    }
 
@@ -94,14 +94,14 @@ void ClickEncoder::service(void) {
      {
        lastButtonCheck = now;
 
-       if (pinBut == 0) { // key is down
+       if (!pinBut) { // key is down
          keyDownTicks++;
          if (keyDownTicks > (ENC_HOLDTIME / ENC_BUTTONINTERVAL)) {
            button = Held;
          }
        }
 
-       if (pinBut != 0) { // key is now up
+       if (pinBut) { // key is now up
          if (keyDownTicks /*> ENC_BUTTONINTERVAL*/) {
            if (button == Held) {
              button = Released;

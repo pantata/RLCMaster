@@ -44,8 +44,12 @@ void tft_off() {
 
 void tft_init() {
 
+	//CS, DC, LED na vystup
+	DDRB |= (1 << CS) | (1 << DC);
+	DDRD |= (1 << LED);
+
     //backlight on
-    TFT_BL_ON;
+	 TFT_BL_ON;
 
     _delay_ms(20);
 
@@ -54,7 +58,7 @@ void tft_init() {
     TFT_SET_DATA;
     //reset
     TFT_RST_ON;
-    _delay_ms(10);
+    _delay_ms(20);
     TFT_RST_OFF;
     _delay_ms(150);
 
@@ -374,6 +378,69 @@ void tft_print(const char *st, int16_t x, int16_t y) {
     if (y == BOTTOM) y=(Y+1)-cfont.y_size;
     for (i=0; i<stl; i++)
         tft_printChar(*st++, x + (i*(cfont.x_size)), y);
+}
+
+void tft_printNumI(long num, int x, int y, int length, char filler)
+{
+	char buf[25];
+	char st[27];
+	uint8_t neg=false;
+	int c=0, f=0;
+
+	if (num==0)
+	{
+		if (length!=0)
+		{
+			for (c=0; c<(length-1); c++)
+				st[c]=filler;
+			st[c]=48;
+			st[c+1]=0;
+		}
+		else
+		{
+			st[0]=48;
+			st[1]=0;
+		}
+	}
+	else
+	{
+		if (num<0)
+		{
+			neg=true;
+			num=-num;
+		}
+
+		while (num>0)
+		{
+			buf[c]=48+(num % 10);
+			c++;
+			num=(num-(num % 10))/10;
+		}
+		buf[c]=0;
+
+		if (neg)
+		{
+			st[0]=45;
+		}
+
+		if (length>(c+neg))
+		{
+			for (int i=0; i<(length-c-neg); i++)
+			{
+				st[i+neg]=filler;
+				f++;
+			}
+		}
+
+		for (int i=0; i<c; i++)
+		{
+			st[i+neg+f]=buf[c-i-1];
+		}
+		st[c+neg+f]=0;
+
+	}
+
+	tft_print(st,x,y);
 }
 
 void tft_drawHLine(int16_t x, int16_t y, int16_t l) {
