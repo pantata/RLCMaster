@@ -38,7 +38,7 @@ protected:
 class RTC_8563 {
 public:
     static uint8_t begin(void);
-    static void adjust(const DateTime& dt);
+    static void adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss);
     uint8_t isrunning(void);
     static DateTime now();
 };

@@ -14,30 +14,20 @@
 #define VERSION  3
 
 #define CHANNELS 7
+#define PWMSTEPS 1000
 #define MAXPWMCOUNT 100
 
 #define LCDREFRESH  3000
 #define SECINTERVAL 1000
-#define LEDINTERVAL 100
-#define LEDSTEP 2
-
-//display text
-#define NONE	 ( char *) "                "
-#define AUTO     ( char *) "    LED AUTO    "
-#define MANUAL   ( char *) "   LED  MANUAL  "
-#define OFF      ( char *) "   LED VYPNUTO  "
-#define CANCEL   ( char *) "Zpet  "
-#define SAVE     ( char *) "Ulozit"
-#define SETTINGS ( char *) "  Nastaveni LED "
-#define SETTIME  ( char *) " Nastaveni hodin"
-#define RTCERR   ( char *) "  Chyba hodin   "
+#define LEDINTERVAL 1000
+#define LEDSTEP 1
 
 #define BTPOSX    138
 #define BTPOSY    0
 
 //display & menu timeout
-#define TIMEOUTMENU         200
-#define TIMEOUTPODSVICENI  400
+#define TIMEOUTMENU         120
+#define TIMEOUTPODSVICENI  120
 
 #define MENU_OFF     0
 #define MENU_MANUAL  1
@@ -55,7 +45,7 @@
 
 RTC_8563 RTC;
 
-const char *menuIcon[] = {"0","1","2","3","6","4","7","5"};
+
 
 struct _pwmValue {
 	uint8_t  timeSlot;
@@ -74,6 +64,8 @@ struct SetupData {
     int16_t lcdTimeout;
     _pwmValue pwmValues[MAXPWMCOUNT];
     int16_t overrideVal[CHANNELS];
+    int8_t dt_fmt; //0 = DD.MM.YY,   1 = dd-mm-yy ,   2 = mm/dd/yy,  3 = yy-mm-dd
+    bool tm_fmt;  // 0 = 24H, 1 = 12H
 } setupData;
 
 unsigned long lastSetupDataSum;
@@ -81,7 +73,7 @@ unsigned long lastSetupDataSum;
 // MENU
 uint8_t menuItem = 0;
 uint8_t menuPos = 0;
-int16_t menuTimeout = TIMEOUTMENU;
+
 uint8_t selMenu = 0;
 bool isMenu = false;
 bool resetMenu = false;
@@ -95,18 +87,8 @@ int16_t lastChannelVal[CHANNELS];
 bool override = false;
 bool manualOFF = false;
 
-//LCD
-int16_t lcdTimeout=TIMEOUTPODSVICENI;
-
-//RIZENI
-uint8_t _dateTimeStamp = 0;
-long timeStamp01 = 0;
-long timeStamp02 = 0;
-long timeStamp03 = 0;
-
 //DATETIME
-DateTime t = NULL;
-
+DateTime t;
 
 //UART
 bool isUartData = false;
@@ -119,9 +101,7 @@ uint16_t _bytes = 0;
 uint8_t _address = 0;
 
 //FUNKCE
-void sortPwmValues(uint8_t k);
-void initInterrupts(void);
-void initTimer(void);
-void initPwmValue();
+static void sortPwmValues(uint8_t k);
+static void initPwmValue();
 
 #endif /* MAIN_H_ */

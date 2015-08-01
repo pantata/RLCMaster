@@ -147,8 +147,8 @@ uint32_t DateTime::unixtime(void) const {
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_PCF8563 implementation
 
-static uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
-static uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
+static uint8_t bcd2bin (uint8_t val) { return ((val/16*10) + (val%16)); }
+static uint8_t bin2bcd (uint8_t val) { return ((val/10*16) + (val%10)); }
 
 uint8_t RTC_8563::begin(void) {
     return 1;
@@ -165,17 +165,24 @@ uint8_t RTC_8563::isrunning(void) {
     return !(ss>>5);
 }
 
-void RTC_8563::adjust(const DateTime& dt) {
+void RTC_8563::adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss) {
     
     twi_begin_transmission(Rtcc_Addr);
     twi_send_byte(RTCC_SEC_ADDR);
-    twi_send_byte(bin2bcd(dt.second()));
-    twi_send_byte(bin2bcd(dt.minute()));
-    twi_send_byte(bin2bcd(dt.hour()));
-    twi_send_byte(bin2bcd(dt.day()));
-    twi_send_byte(bin2bcd(dt.dayOfWeek()));
-    twi_send_byte(bin2bcd(dt.month()));
-    twi_send_byte(bin2bcd(dt.year()-2000));
+    twi_send_byte(bin2bcd(ss));
+    twi_send_byte(bin2bcd(mi));
+    twi_send_byte(bin2bcd(hh));
+    twi_end_transmission();
+
+    twi_begin_transmission(Rtcc_Addr);
+    twi_send_byte(RTCC_DAY_ADDR);
+    twi_send_byte(bin2bcd(dd));
+    twi_end_transmission();
+
+    twi_begin_transmission(Rtcc_Addr);
+    twi_send_byte(RTCC_MONTH_ADDR);
+    twi_send_byte(bin2bcd(mo));
+    twi_send_byte(bin2bcd(yy));
     twi_end_transmission();
 }
 

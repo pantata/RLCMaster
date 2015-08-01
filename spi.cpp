@@ -18,13 +18,10 @@ void spi_init() {
     PORTB |= (1 << SS);
     DDRB |= (1<<SS);
 
-    //SPI clock
-    SPCR = (SPCR & ~SPI_CLOCK_MASK) | (SPI_CLOCK_DIV4 & SPI_CLOCK_MASK);
-    SPSR = (SPSR & ~SPI_2XCLOCK_MASK) | ((SPI_CLOCK_DIV4 >> 2) & SPI_2XCLOCK_MASK);
-
-    // Enable SPI, Set as Master
+    // Enable SPI, Set as Master, Freq/2
     SPCR |= (1 << MSTR);
     SPCR |= (1 << SPE);
+    SPSR = (1 << SPI2X);
 
     // Set SS, MOSI, SCK as Output
     DDRB |= (1<<SCK)|(1<<MOSI);

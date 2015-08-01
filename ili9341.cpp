@@ -380,6 +380,7 @@ void tft_print(const char *st, int16_t x, int16_t y) {
         tft_printChar(*st++, x + (i*(cfont.x_size)), y);
 }
 
+
 void tft_printNumI(long num, int x, int y, int length, char filler)
 {
 	char buf[25];
