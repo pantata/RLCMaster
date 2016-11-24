@@ -159,7 +159,7 @@ uint8_t RTC_8563::isrunning(void) {
 	twi_begin_transmission(Rtcc_Addr);
 	twi_send_byte(i);
 	twi_end_transmission();
-    
+
 	twi_request_from(Rtcc_Addr, 1);
     uint8_t ss = twi_receive();
     return !(ss>>5);
