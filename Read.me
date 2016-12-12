@@ -1,0 +1,11 @@
+hex to firmware bin:
+avr-objcopy -I ihex RlcMasterFw.hex -O binary firmware.bin
+
+upload:
+curl -F "datafile=@firmware.bin" http://192.168.168.105/uploader.html
+
+update:
+curl http://192.168.168.105/avr.cgi
+
+result:
+curl http://192.168.168.105/avrstatus.cgi

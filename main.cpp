@@ -4,9 +4,20 @@
  *  Created on: 26. 3. 2015
  *      Author: ludek
  */
+///
+/// @mainpage	RlcMasterFw
+///
+/// @details    led controlller avr chip firmware
+/// @n
+/// @n
+///
+/// @date		27. 3. 2015
+/// @version
+///
+///
+/// @see		ReadMe.txt for references
+///
 
-
-// TODO: implementace mesice, mraku
 
 #define DEBUG 1
 
@@ -1110,7 +1121,7 @@ int main(void) {
 
 
 		/*
-		 *  Obsluha UART komunikace
+		 *  Obsluha UART komunikace s wifi
 		 */
 
 		if (uart_available()) { //data cekaji ve fromte
@@ -1119,8 +1130,6 @@ int main(void) {
 			uint8_t *p = uart_getPckt();
 
 			memcpy((void*)uart_data,(void*)p,8);
-
-			//tft_setFont(Icon16x16);tft_setColor(VGA_BLUE);tft_print("6",BTPOSX,BTPOSY);
 
 			//precteme 8 byte z bufferu
 			if (!isUartData) {
@@ -1228,6 +1237,7 @@ int main(void) {
 							uart_putB(UART_CRCERROR & 0xFF);
 						}
 				} //uDataLength > 0
+
 				if (uDataLength == 0) {
 					switch (uart_cmd) {
 						case 0x82:  //set led
@@ -1275,7 +1285,6 @@ int main(void) {
 					memset(_data,0,400);
 				}
 			}
-			//tft_setFont(Icon16x16);tft_setColor(VGA_BLACK);tft_print("0",BTPOSX,BTPOSY);
 		} //konec obsluhy UART
 
 		//pri stisku ovl. prvku rozsvitime display a resetujeme timeout

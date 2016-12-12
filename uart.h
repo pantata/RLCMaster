@@ -17,7 +17,7 @@
 #endif
 
 /* Settings */
-#define _BAUD			9600					// Baud rate (9600 is default)
+#define _BAUD			115200					// Baud rate (9600 is default)
 #define _DATA			0x03					// Number of data bits in frame = byte tranmission
 #define _UBRR			(FOSC/16)/_BAUD - 1		// Used for UBRRL and UBRRH
 

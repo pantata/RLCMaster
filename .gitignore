@@ -4,3 +4,4 @@ Release
 core
 .settings
 /.cproject
+/.DS_Store
