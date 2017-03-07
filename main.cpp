@@ -299,7 +299,7 @@ void handleWifiData() {
 }
 
 void sendWiFiCommand() {
-	char tmpbuff[8];
+	char tmpbuff[12];
 	switch (wifiState) {
 		case ping:
 			uart_write(PING);
@@ -363,7 +363,7 @@ void setTimeFromWiFi(uint8_t *data) {
 		unixtime.btime[2] = data[4];
 		unixtime.btime[3] = data[5];
 		DateTime at = DateTime(unixtime.time);
-		RTC.adjust(at.year()-2000, at.month(), at.day(), at.hour(), at.minute(), at.second());
+		RTC.adjust(at.year()>2000?at.year()-2000:0, at.month(), at.day(), at.hour(), at.minute(), at.second());
 	}
 }
 
