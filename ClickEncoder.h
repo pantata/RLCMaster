@@ -73,8 +73,9 @@ private:
   uint8_t steps;
   volatile uint16_t acceleration;
   volatile int16_t delta;
-  volatile int16_t last;
+  volatile int8_t last;
   volatile Button button;
+
 };
 
 #endif /* CLICKENCODER_H_ */

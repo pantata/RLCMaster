@@ -34,13 +34,20 @@ protected:
     uint8_t yOff, m, d, hh, mm, ss;
 };
 
+
+
 // RTC based on the DS1307 chip connected via I2C and the Wire library
 class RTC_8563 {
+
 public:
     static uint8_t begin(void);
     static void adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss);
-    uint8_t isrunning(void);
+    static uint8_t isrunning(void);
+    static uint8_t getStatus(void);
     static DateTime now();
+
+private:
+    static uint8_t status;
 };
 
 #endif /* defined(__RLCMaster__RTC8563__) */

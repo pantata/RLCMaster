@@ -251,6 +251,7 @@ void tft_setRotation(uint8_t m) {
     TFT_CS_OFF;
 }
 
+
 void tft_setFont(const uint8_t* font) {
     cfont.font=font;
     cfont.x_size=fontbyte(0);
@@ -657,3 +658,20 @@ void tft_fillScr(uint16_t color) {
     tft_clrScr();
 }
 
+/*
+void tft_drawBitmap(int x, int y, int sx, int sy, const unsigned int* data) {
+
+	unsigned int col;
+	int tx, ty, tc, tsx, tsy;
+
+	TFT_CS_ON;
+	tft_setXY(x, y, x+sx-1, y+sy-1);
+	for (tc=0; tc<(sx*sy); tc++) {
+		col=pgm_read_word(&data[tc]);
+		spi_rw(col>>8); spi_rw(col & 0xff);
+	}
+	TFT_CS_OFF;
+
+	tft_clrXY();
+}
+*/

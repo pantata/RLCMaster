@@ -11,15 +11,16 @@
 #include <avr/pgmspace.h>
 #include "rtc8563.h"
 
-#define VERSION  3
+#define VERSION  5
 
+#define MODULES 16
 #define CHANNELS 7
-#define PWMSTEPS 1000
+#define PWMSTEPS 4000
 #define MAXPWMCOUNT 100
 
 #define LCDREFRESH  3000
 #define SECINTERVAL 1000
-#define LEDINTERVAL 1000
+#define LEDINTERVAL 5000
 #define LEDSTEP 1
 
 #define BTPOSX    138
@@ -45,63 +46,114 @@
 
 RTC_8563 RTC;
 
+#define PING         "0      " //find wifi
+#define GETCHANGE    "1      " //is any change?
+#define GETTIME      "2      " //get unixtime
+#define GETCONFIG    "3%c%c%c%c%c " //send modules count and get config data from wifi
+#define GETLEDVALUES "4      " //getLedValues
+#define GETNETVALUES "5      " //getNetValues (ip, name, wifi, pwd ...)
+#define LEDMANUAL    "6%c     " //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
+#define LEDOFF       "7      " //set manual,
+#define GETLOGO      "Z      "
 
-
-struct _pwmValue {
-	uint8_t  timeSlot;
-	uint8_t  pwmChannel;
-	int16_t pwmValue;
+union Unixtime {
+    uint32_t time;
+    uint8_t btime[4];
 };
 
-//_pwmValue pwmValues[MAXPWMCOUNT];
+typedef enum {
+	none,
+	ping,
+	ping_s,
+	config,
+	config_s,
+	time,
+	time_s,
+	setup,
+	setup_s,
+	ledTimeSlots,
+	ledTimeSlots_s,
+	ledValues,
+	ledValues_s,
+	netInfo,
+	netInfo_s,
+	ledOff,
+	ledOff_s,
+	ledManual,
+	ledManual_s,
+	change,
+	change_s,
+} wifiState_t;
+
+#define UARTTIMEOUT    2000L
+uint32_t uartTimeout = 0;
+
+wifiState_t wifiState=none;
+
+union Unixtime unixtime;
 
 uint8_t slaveAddr[16];
 uint8_t modulesCount = 0;
 
+uint8_t ip[4] = {0,0,0,0};
+char ssid[33];
+char pwd[33];
+
 struct SetupData {
+    bool  firstRun;
     uint8_t  version;
-    int16_t menuTimeout;
-    int16_t lcdTimeout;
-    _pwmValue pwmValues[MAXPWMCOUNT];
-    int16_t overrideVal[CHANNELS];
-    int8_t dt_fmt; //0 = DD.MM.YY,   1 = dd-mm-yy ,   2 = mm/dd/yy,  3 = yy-mm-dd
-    bool tm_fmt;  // 0 = 24H, 1 = 12H
+    int8_t menuTimeout;
+    int8_t lcdTimeout;
+    uint8_t dt_fmt;
+    uint8_t tm_fmt;
+    bool useDST;
+    int16_t overrideVal[MODULES][CHANNELS];
 } setupData;
+
 
 unsigned long lastSetupDataSum;
 
 // MENU
 uint8_t menuItem = 0;
 uint8_t menuPos = 0;
+int8_t selMod = 1;
 
 uint8_t selMenu = 0;
 bool isMenu = false;
 bool resetMenu = false;
+bool isWiFi = false;
 
 //LED
-bool moon = false;
-
-int16_t channelVal[CHANNELS];
-int16_t lastChannelVal[CHANNELS];
+int16_t channelVal[MODULES][CHANNELS]; //16x7x2
 
 bool override = false;
 bool manualOFF = false;
 
 //DATETIME
 DateTime t;
+unsigned long currentTime;
 
 //UART
+bool wifiClear = true;
 bool isUartData = false;
+bool uDataIsComplete = false;
 uint16_t uDataLength = 0;
-uint8_t tmpBuffer[8];
+uint8_t uart_data[8];
 uint8_t uart_cmd = 0;
 uint16_t uart_DataLength = 0;
-uint8_t _data[400];
+uint8_t _data[300];
 uint16_t _bytes = 0;
 uint8_t _address = 0;
+int8_t lcdTimeout;
+int8_t menuTimeout;
 
 //FUNKCE
-static void sortPwmValues(uint8_t k);
-static void initPwmValue();
+void wifiFound();
+void setTimeFromWiFi(uint8_t *data);
+void setLedVal();
 
+//
+void printTemperature();
+
+static void tftClearWin(const char *title);
 #endif /* MAIN_H_ */

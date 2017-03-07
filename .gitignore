@@ -5,3 +5,4 @@ core
 .settings
 /.cproject
 /.DS_Store
+/Debug/

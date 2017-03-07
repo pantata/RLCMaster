@@ -25,15 +25,18 @@ void uart_init(void)
 	DDRD |= _BV(PD1);
 	DDRD &= ~_BV(PD0);
 
-	// Set baud rate; lower byte and top nibble
-	UBRR0H = ((_UBRR) & 0xF00);
-	UBRR0L = (uint8_t) ((_UBRR) & 0xFF);
 
-	TX_START();
-	RX_START();
+	UCSR0A = _BV(U2X0); //Double speed mode USART0
 
 	// Set frame format = 8-N-1
 	UCSR0C = (_DATA << UCSZ00);
+
+	// Set baud rate; lower byte and top nibble
+	UBRR0H = ((_UBRR) & 0xF00);
+	UBRR0L = ((_UBRR) & 0xFF);
+
+	TX_START();
+	RX_START();
 
 	//enable RX interrupt
 	RX_INTEN();
@@ -52,7 +55,16 @@ void uart_putB(unsigned char data)
 }
 
 /*! \brief Writes an ASCII string to the TX buffer */
-void uart_write(char *str)
+void uart_writeB(uint8_t *b, uint8_t  l)
+{
+	while (l--) {
+		uart_putB(*b);
+		++b;
+	}
+}
+
+/*! \brief Writes an ASCII string to the TX buffer */
+void uart_write(const char *str)
 {
 	while (*str != '\0')
 	{

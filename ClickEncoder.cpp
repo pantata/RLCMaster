@@ -22,9 +22,11 @@
 #define ENC_ACCEL_INC        25
 #define ENC_ACCEL_DEC         2
 
-#define pinB (PINC & (1<<PC1))
-#define pinA (PINC & (1<<PC2))
-#define pinBut (PINC & (1<<PC0))
+#define _enc_pinB (PINC & (1<<PC2))
+#define _enc_pinA (PINC & (1<<PC1))
+#define _enc_pinBut (PINC & (1<<PC0))
+
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 
 ClickEncoder::ClickEncoder(uint8_t stepsPerNotch):
 	doubleClickEnabled(true), accelerationEnabled(true),
@@ -33,15 +35,19 @@ ClickEncoder::ClickEncoder(uint8_t stepsPerNotch):
 
 	//PULLUP ZAPNOUT
 	PORTC |= (1 << PC1) | (1 << PC2) | (1 << PC0);
+	PORTC |= (1 << PC0);
+	//PULLUP VYPNOUT
+	//cbi(PORTC,PC1);
+	//cbi(PORTC,PC2);
 
 	//PINY NA INPUT
 	DDRC |= (1 << PC1) | (1 << PC2) | (1 << PC0);
 
 
-	if (!pinA)  {
+	if (!_enc_pinB)  {
 		last = 3;
 	}
-	if (!pinB) {
+	if (!_enc_pinA) {
 	    last ^=1;
 	}
 }
@@ -63,11 +69,11 @@ void ClickEncoder::service(void) {
 
   int8_t curr = 0;
 
-   if (!pinA) {
+   if (!_enc_pinB) {
      curr = 3;
    }
 
-   if (!pinB) {
+   if (!_enc_pinA) {
      curr ^= 1;
    }
 
@@ -94,14 +100,14 @@ void ClickEncoder::service(void) {
      {
        lastButtonCheck = now;
 
-       if (!pinBut) { // key is down
+       if (!_enc_pinBut) { // key is down
          keyDownTicks++;
          if (keyDownTicks > (ENC_HOLDTIME / ENC_BUTTONINTERVAL)) {
            button = Held;
          }
        }
 
-       if (pinBut) { // key is now up
+       if (_enc_pinBut) { // key is now up
          if (keyDownTicks /*> ENC_BUTTONINTERVAL*/) {
            if (button == Held) {
              button = Released;

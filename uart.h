@@ -12,14 +12,16 @@
 #include <stdint.h>
 
 /* Probably already defined somewhere else. Define here, if isn't. */
-#ifndef FOSC
-#define	FOSC			16000000UL
+#ifndef F_CPU
+#define	F_CPU			16000000UL
 #endif
 
 /* Settings */
-#define _BAUD			115200					// Baud rate (9600 is default)
+#define _BAUD			250000					// Baud rate (9600 is default)
 #define _DATA			0x03					// Number of data bits in frame = byte tranmission
-#define _UBRR			(FOSC/16)/_BAUD - 1		// Used for UBRRL and UBRRH
+#define _UBRR			(uint8_t)( (F_CPU + _BAUD * 4L) / (_BAUD * 8L) - 1 )
+//#define _UBRR			16 //115200 U2X = 1
+
 
 #define RX_BUFF			8
 #define UART_RX0_BUFFER_MASK ( RX_BUFF - 1)
@@ -59,7 +61,8 @@ extern "C" {
 /* Prototypes */
 void uart_init(void);
 void uart_putB(unsigned char data);
-void uart_write(char *str);
+void uart_write(const char *str);
+void uart_writeB(uint8_t *b, uint8_t  l);
 uint8_t *uart_getPckt(void);
 bool uart_available(void);
 

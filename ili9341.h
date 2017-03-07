@@ -21,7 +21,8 @@
 #define RESET  PB2
 #define CS     PB0
 #define DC     PB1
-#define LED    PD7
+#define LED    PD5  //version 5
+//#define LED    PD7  //version 1
 
 #define TFT_CS_OFF  PORTB |=  (1 << CS)
 #define TFT_CS_ON   PORTB &= ~(1 << CS)
@@ -180,6 +181,7 @@ void tft_init2();
 void tft_setRotation(uint8_t m);
 void tft_setColor(uint16_t  color);
 void tft_setBackColor(uint16_t color);
+void tft_setBackColor(uint8_t r, uint8_t g, uint8_t b);
 void tft_setFont(const uint8_t* font);
 uint8_t tft_getBackColor();
 uint8_t tft_getColor();
@@ -202,5 +204,6 @@ void tft_setColor(uint8_t r, uint8_t g, uint8_t b);
 uint8_t tft_getFontYsize();
 uint8_t tft_getFontXsize();
 void tft_printNumI(long num, int x, int y, int length=0, char filler=' ');
+//void tft_drawBitmap(int x, int y, int sx, int sy, const unsigned int* data);
 
 #endif /* ILI9341_H_ */

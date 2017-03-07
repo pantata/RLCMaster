@@ -150,8 +150,11 @@ uint32_t DateTime::unixtime(void) const {
 static uint8_t bcd2bin (uint8_t val) { return ((val/16*10) + (val%16)); }
 static uint8_t bin2bcd (uint8_t val) { return ((val/10*16) + (val%10)); }
 
+uint8_t RTC_8563::status;
+
 uint8_t RTC_8563::begin(void) {
-    return 1;
+	status = 1;
+    return isrunning();
 }
 
 
@@ -163,6 +166,10 @@ uint8_t RTC_8563::isrunning(void) {
 	twi_request_from(Rtcc_Addr, 1);
     uint8_t ss = twi_receive();
     return !(ss>>5);
+}
+
+uint8_t RTC_8563::getStatus(void) {
+    return status;
 }
 
 void RTC_8563::adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss) {
@@ -192,7 +199,9 @@ DateTime RTC_8563::now() {
     twi_end_transmission();
     
     twi_request_from(Rtcc_Addr, 7);
-    uint8_t ss = bcd2bin(twi_receive() & 0x7F);
+    uint8_t ss_c = twi_receive();
+    uint8_t ss = bcd2bin(ss_c & 0x7F);
+    status = (ss_c & 0x80) >> 7;
     uint8_t mm = bcd2bin(twi_receive() & 0x7f);
     uint8_t hh = bcd2bin(twi_receive() & 0x3f);
     uint8_t d = bcd2bin(twi_receive()  & 0x3f);
