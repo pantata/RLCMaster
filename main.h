@@ -52,7 +52,7 @@ RTC_8563 RTC;
 #define GETCONFIG    "3%c%c%c%c%c " //send modules count and get config data from wifi
 #define GETLEDVALUES "4      " //getLedValues
 #define GETNETVALUES "5      " //getNetValues (ip, name, wifi, pwd ...)
-#define LEDMANUAL    "6%c     " //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
+#define LEDMANUAL    "6%c    %c" //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
 #define LEDOFF       "7      " //set manual,
 #define GETLOGO      "Z      "
 
@@ -81,6 +81,7 @@ typedef enum {
 	ledOff_s,
 	ledManual,
 	ledManual_s,
+	ledManualOverride_s,
 	change,
 	change_s,
 } wifiState_t;
@@ -152,8 +153,17 @@ void wifiFound();
 void setTimeFromWiFi(uint8_t *data);
 void setLedVal();
 
+//LED MANUAL OVVERIDE
+uint8_t override_y = 0;
+uint8_t override_x = 0;
+bool ledLowValuesOK = false;
+bool ledHighValuesOK = false;
+bool ledValuesOK = false;
+
 //
 void printTemperature();
 
 static void tftClearWin(const char *title);
+
+uint16_t checkCrc(uint8_t *data, bool r=true);
 #endif /* MAIN_H_ */
