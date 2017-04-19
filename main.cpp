@@ -170,6 +170,44 @@ void setLedVal(bool man, uint16_t l) {
 	redraw = true;
 }
 
+
+void move(){
+    override_x++;
+    if(override_x == 7){
+        override_y++;
+        override_x = 0;
+        if(override_y >= 16){
+            override_y = 0;
+            override_x = 0;
+        }
+    }
+    ledLowValuesOK = false;
+    ledHighValuesOK = false;
+}
+
+void sendOverrideValue(int16_t value){
+
+	int8_t intValue;
+
+    if(!ledValuesOK && !ledLowValuesOK){
+    	intValue = LOW_BYTE(value);
+        uart_writeB((uint8_t *) intValue,sizeof(intValue));
+    }else{
+        ledLowValuesOK = true;
+        ledValuesOK = false;
+    }
+    if(ledLowValuesOK && !ledValuesOK && !ledHighValuesOK){
+    	intValue = HIGH_BYTE(value);
+    	uart_writeB((uint8_t *) intValue,sizeof(intValue));
+    }else{
+        ledHighValuesOK = true;
+        ledValuesOK = false;
+    }
+    if(ledHighValuesOK && ledLowValuesOK){
+       move();
+    }
+}
+
 void handleWifiData() {
 
 	if (!isUartData) {
@@ -213,6 +251,13 @@ void handleWifiData() {
 			case ledManual_s:
 				if ((uart_data[1] == 'O') && (uart_data[2] == 'K') ) {
 					wifiState = ledValues;
+				}
+				wifiClear = true;
+				break;
+			case ledManualOverride_s:
+				if ((uart_data[1] == 'O') && (uart_data[2] == 'K') ) {
+					wifiState = ledManual;
+					ledValuesOK = true;
 				}
 				wifiClear = true;
 				break;
@@ -333,12 +378,27 @@ void sendWiFiCommand() {
 			wifiClear = false;
 			break;
 		case ledManual:
-			sprintf(tmpbuff,LEDMANUAL,override);
+			sprintf(tmpbuff,LEDMANUAL,override,sizeof(setupData.overrideVal));
 			uart_write(tmpbuff);
 			wifiState = ledManual_s;
 			///TODO: send led values
 			if (override) {
-				//uart_writeB((uint8_t*)setupData.overrideVal,sizeof(setupData.overrideVal));
+				wifiState = ledManualOverride_s;
+
+				uint8_t tmp[8];
+				tmp[0] = LOW_BYTE(setupData.overrideVal[0][0]);
+				tmp[1] = HIGH_BYTE(setupData.overrideVal[0][0]);
+				tmp[2] = LOW_BYTE(setupData.overrideVal[0][1]);
+				tmp[3] = HIGH_BYTE(setupData.overrideVal[0][1]);
+				tmp[4] = LOW_BYTE(setupData.overrideVal[0][2]);
+				tmp[5] = HIGH_BYTE(setupData.overrideVal[0][2]);
+
+				uint16_t crc = checkCrc(tmp, false); //vypocet
+				tmp[6] = LOW_BYTE(crc);
+				tmp[7] = HIGH_BYTE(crc);
+
+				//sendOverrideValue(setupData.overrideVal[override_x][override_y]);
+				uart_writeB(tmp,8);
 			}
 			wifiClear = false;
 			break;
@@ -371,8 +431,13 @@ void setTimeFromWiFi(uint8_t *data) {
 	}
 }
 
-uint16_t checkCrc(uint8_t *data) {
-	uint16_t crc = 0xffff;
+/*
+ *  if r = true, check crc, other compute
+ */
+uint16_t checkCrc(uint8_t *data, bool r) {
+
+	uint16_t crc = r?0xffff:0;
+
 	for (uint8_t i = 0; i < 8; i++) {
 		crc = crc16_update(crc, data[i]);
 	}

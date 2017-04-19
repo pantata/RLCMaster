@@ -165,5 +165,6 @@ void printTemperature();
 
 static void tftClearWin(const char *title);
 
-uint16_t checkCrc(uint8_t *data);
+uint16_t checkCrc(uint8_t *data, bool r=true);
+
 #endif /* MAIN_H_ */
