@@ -110,15 +110,19 @@ static void tft_printT(unsigned long t) {
 #endif
 
 
+void clearData() {
+	memset(_data,0,sizeof(_data));
+}
+
 void setConfigFromWifi() {
 	setupData.lcdTimeout = 127;//constrain(_data[0],5,127);
 	setupData.menuTimeout = 127; //constrain(_data[1],5,127);
 	lcdTimeout = setupData.lcdTimeout;
 	menuTimeout = setupData.menuTimeout;
-	setupData.dt_fmt = _data[2];
-	setupData.tm_fmt = _data[3];
-	setupData.useDST = _data[4];
-	memset(_data,0,6);
+	setupData.dt_fmt =constrain(_data[2],0,4);
+	setupData.tm_fmt = constrain(_data[3],0,7);
+	setupData.useDST = constrain(_data[4],0,1);
+	clearData() ;
 }
 
 void setNetInfo(uint16_t l) {
