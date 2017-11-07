@@ -21,7 +21,8 @@ void spi_init() {
     // Enable SPI, Set as Master, Freq/2
     SPCR |= (1 << MSTR);
     SPCR |= (1 << SPE);
-    SPSR = (1 << SPI2X);
+    //SPCR |= (1 << SPR0);  //speed clock/16
+    //SPSR = (1 << SPI2X);
 
     // Set SS, MOSI, SCK as Output
     DDRB |= (1<<SCK)|(1<<MOSI);

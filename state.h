@@ -1,0 +1,46 @@
+/*
+ * state.h
+ *
+ *  Created on: 19. 4. 2017
+ *      Author: slouf
+ */
+
+#ifndef STATE_H_
+#define STATE_H_
+
+#define PING         "0" //find wifi
+#define GETCHANGE    "1\xff\xff\xff\xff\xff\xff\xff" //is any change?
+#define GETTIME      "2\xff\xff\xff\xff\xff\xff\xff" //get unixtime
+#define GETCONFIG    "3%c%c%c%c%c\xff\xff"      //send modules count and get config data from wifi
+#define GETLEDVALUES "4" //getLedValues
+#define GETNETVALUES "5\xff\xff\xff\xff\xff\xff\xff" //getNetValues (ip, name, wifi, pwd ...)
+#define LEDMANUAL    "6%c\xff\xff\xff\xff\xff\xff"  //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
+#define LEDOFF       "7\xff\xff\xff\xff\xff\xff\xff" //set manual,
+#define GETLOGO      "Z\xff\xff\xff\xff\xff\xff\xff"
+
+typedef enum {
+	none,
+	ping,
+	ping_s,
+	config,
+	config_s,
+	time,
+	time_s,
+	setup,
+	setup_s,
+	ledTimeSlots,
+	ledTimeSlots_s,
+	ledValues,
+	ledValues_s,
+	netInfo,
+	netInfo_s,
+	ledOff,
+	ledOff_s,
+	ledManual,
+	ledManual_s,
+	change,
+	change_s,
+	reset
+} wifiState_t;
+
+#endif /* STATE_H_ */

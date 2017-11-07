@@ -13,95 +13,37 @@
 
 #include "utils.h"
 
-#define BAUD 9600
-#include <util/setbaud.h>
-
-
-#define CLOCKSEL (_BV(CS01)|_BV(CS00))
-#define PRESCALER 64
-
-#define REG_TCCRA		TCCR0A
-#define REG_TCCRB		TCCR0B
-#define REG_TIMSK		TIMSK0
-#define REG_OCR			OCR0A
-#define BIT_WGM			WGM01
-#define BIT_OCIE		OCIE0A
-#define ISR_VECT		TIMER0_COMPA_vect
-#define pwr_enable()	power_timer0_enable()
-#define pwr_disable()	power_timer0_disable()
-
-#define SET_TCCRA()	(REG_TCCRA |= _BV(BIT_WGM))
-#define SET_TCCRB()	(REG_TCCRB |= CLOCKSEL)
-
 static volatile millis_t milliseconds;
+#define CTC_MATCH_OVERFLOW ((F_CPU / 1000) / 8)
+
+ISR (TIMER1_COMPA_vect) {
+	milliseconds++;
+
+}
+
+unsigned long millis () {
+    unsigned long millis_return;
+
+    // Ensure this cannot be disrupted
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+        millis_return = milliseconds;
+    }
+
+    return millis_return;
+}
 
 // Initialise library
 void millis_init()
 {
 	// Timer settings
-	SET_TCCRA();
-	SET_TCCRB();
-	REG_TIMSK |= _BV(BIT_OCIE);
-	REG_OCR = ((F_CPU / PRESCALER) / 1000);
+	TCCR1B |= (1 << WGM12) | (1 << CS11);
+	 OCR1AH = (CTC_MATCH_OVERFLOW >> 8);
+	 OCR1AL = CTC_MATCH_OVERFLOW;
+	 // Enable the compare match interrupt
+	 TIMSK1 |= (1 << OCIE1A);
 }
 
-// Get current milliseconds
-millis_t millis_get()
-{
-	millis_t ms;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		ms = milliseconds;
-	}
-	return ms;
-}
 
-// Turn on timer and resume time keeping
-void millis_resume()
-{
-	pwr_enable();
-	REG_TIMSK |= _BV(BIT_OCIE);
-}
-
-// Pause time keeping and turn off timer to save power
-void millis_pause()
-{
-	REG_TIMSK &= ~_BV(BIT_OCIE);
-	pwr_disable();
-}
-
-// Reset milliseconds count to 0
-void millis_reset()
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		milliseconds = 0;
-	}
-}
-
-// Add time
-void millis_add(millis_t ms)
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		milliseconds += ms;
-	}
-}
-
-// Subtract time
-void millis_subtract(millis_t ms)
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		milliseconds -= ms;
-	}
-}
-
-ISR(ISR_VECT)
-{
-	++milliseconds;
-
-}
 
 /*********************************
  *

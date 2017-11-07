@@ -22,7 +22,7 @@
 #define DBG_UART_TX_PIN		PD6
 
 /* User setting -> Software UART baudrate. */
-#define DBG_UART_BAUDRATE	9600
+#define DBG_UART_BAUDRATE	115200
 
 
 /* ---- DO NOT TOUCH BELOW THIS LINE ---- */
@@ -50,7 +50,7 @@
  * NDLY = (F_CPU/BAUDRATE-16)/4+1
  */
 void dbg_putchar(uint8_t c);
-void dbg_puts(char *s);
+void dbg_puts(const char *s);
 
 #else
   #define dbg_tx_init()		

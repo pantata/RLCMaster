@@ -15,12 +15,18 @@
 
 #define MODULES 16
 #define CHANNELS 7
-#define PWMSTEPS 4000
+#define PWMSTEPS 1000
 #define MAXPWMCOUNT 100
 
 #define LCDREFRESH  3000
 #define SECINTERVAL 1000
+
+//#ifdef DEBUG
+//#define LEDINTERVAL 20000
+//#else
 #define LEDINTERVAL 5000
+//#endif
+
 #define LEDSTEP 1
 
 #define BTPOSX    138
@@ -46,47 +52,16 @@
 
 RTC_8563 RTC;
 
-#define PING         "0      " //find wifi
-#define GETCHANGE    "1      " //is any change?
-#define GETTIME      "2      " //get unixtime
-#define GETCONFIG    "3%c%c%c%c%c " //send modules count and get config data from wifi
-#define GETLEDVALUES "4      " //getLedValues
-#define GETNETVALUES "5      " //getNetValues (ip, name, wifi, pwd ...)
-#define LEDMANUAL    "6%c    %c" //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
-#define LEDOFF       "7      " //set manual,
-#define GETLOGO      "Z      "
+
 
 union Unixtime {
     uint32_t time;
     uint8_t btime[4];
 };
 
-typedef enum {
-	none,
-	ping,
-	ping_s,
-	config,
-	config_s,
-	time,
-	time_s,
-	setup,
-	setup_s,
-	ledTimeSlots,
-	ledTimeSlots_s,
-	ledValues,
-	ledValues_s,
-	netInfo,
-	netInfo_s,
-	ledOff,
-	ledOff_s,
-	ledManual,
-	ledManual_s,
-	ledManualOverride_s,
-	change,
-	change_s,
-} wifiState_t;
 
-#define UARTTIMEOUT    2000L
+
+#define UARTTIMEOUT  5000L
 uint32_t uartTimeout = 0;
 
 wifiState_t wifiState=none;
@@ -97,6 +72,7 @@ uint8_t slaveAddr[16];
 uint8_t modulesCount = 0;
 
 uint8_t ip[4] = {0,0,0,0};
+char hostname[33];
 char ssid[33];
 char pwd[33];
 
@@ -165,6 +141,7 @@ void printTemperature();
 
 static void tftClearWin(const char *title);
 
-uint16_t checkCrc(uint8_t *data, bool r=true);
+uint16_t checkCrc(uint8_t *data);
+uint16_t getCrc(char *data);
 
 #endif /* MAIN_H_ */

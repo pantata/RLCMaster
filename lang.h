@@ -46,7 +46,7 @@ const uint8_t days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 const char CRC_ERROR[] PROGMEM = {"CRC Error"};
 
 const char NET1[]	PROGMEM	=  {"IP: %03d.%03d.%03d.%03d"};
-const char NET2[]	PROGMEM	=  {"WIFI :"};
-const char NET3[]	PROGMEM	=  {"HESLO:"};
+const char NET2[]	PROGMEM	=  {"WIFI :%s"};
+const char NET3[]	PROGMEM	=  {"HESLO:%s"};
 const char NET4[]	PROGMEM	=  {"URL: http://%s"};
 #endif /* LANG_H_ */

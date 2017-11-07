@@ -40,6 +40,7 @@
 #include "ClickEncoder.h"
 //#include "encoder.h"
 
+#include "state.h"
 #include "main.h"
 #include "twi.h"
 
@@ -52,12 +53,16 @@
 
 #include "lang.h"
 #include "slave.h"
+#include "twi_registry.h"
 
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
-#define LOW_BYTE(x)        	(x & 0xff)
-#define HIGH_BYTE(x)       	((x >> 8) & 0xff)
+#define LOW_BYTE(x)        	(uint8_t)(x & 0x00ff)
+#define HIGH_BYTE(x)       	(uint8_t)((x & 0xff00) >> 8)
 
-extern uint8_t Retro8x16[];
+#define BYTELOW(v)   (*(((unsigned char *) (&v))))
+#define BYTEHIGH(v)  (*((unsigned char *) (&v)+1))
+
+extern uint8_t Font8x16[];
 extern uint8_t Sinclair_S[];
 extern uint8_t Icon[];
 extern uint8_t DotMatrix_M_Num[];
@@ -76,7 +81,7 @@ unsigned long sec = 0, mls = 0;
 bool redraw = false;
 
 #ifdef DEBUG
-static void tft_println(char* s) {
+static void tft_println(const char *s) {
 
 	#define MAX_LINES 25
 	#define OFFSET    30
@@ -104,9 +109,18 @@ static void tft_printT(unsigned long t) {
 	tft_print(b, 320-(tft_getFontXsize()*8), 240 - tft_getFontYsize());
 }
 
+
+static void printUartPacket() {
+	char tmp[26];
+	sprintf(tmp,"%02X %02X %02X %02X %02X %02X %02X %02X\n",uart_data[0],uart_data[1],uart_data[2],uart_data[3],uart_data[4],uart_data[5],uart_data[6],uart_data[7]);
+	dbg_puts(tmp);
+}
+
+#define dprint(s) dbg_puts(s);
 #else
 #define tft_println(...) for(;0;)
 #define tft_printT(...) for(;0;)
+#define dprint(s) for(;0;)
 #endif
 
 
@@ -129,44 +143,51 @@ void setNetInfo(uint16_t l) {
 	uint8_t stg = 0;
 	uint8_t idx = 0;
 	//4 byte ip addresa,
-	//wifi nazev, yakonceno \0
-	//heslo zakonceno \0
+	//wifi nazev, zakonceno \255
+	//heslo zakonceno \255
 	//hostname zakonceno \0
 	ip[0] = _data[0];
 	ip[1] = _data[1];
 	ip[2] = _data[2];
 	ip[3] = _data[3];
-	for (uint16_t d=4;d<l;d++) {
+
+	for (uint16_t d=6;d<l;d++) {
 		//ssid
 		switch (stg) {
 			case 0: //ssid
-				ssid[idx] = _data[d];
+				hostname[idx] = _data[d];
 				break;
 			case 1: //pwd
 				pwd[idx] = _data[d];
+				break;
+			case 2: //pwd
+				ssid[idx] = _data[d];
 				break;
 			/*
 			case 2: //hostname
 				hostname[idx] = _data[d];
 				break;
 			*/
-
 		}
 		idx++;
-		if (_data[d] == '\0') { stg++; idx = 0; }
+		if (_data[d] == 0xff) { stg++; idx = 0; }
 	}
 }
 
 void setLedVal(bool man, uint16_t l) {
 	uint16_t c=0;
 	//TODO: doplnit manual (overrideVal)
-	if ((selMenu == MENU_MANUAL) || (manualOFF)) return;
+
 	for (uint8_t mod=0; mod < 16; mod++ ) {
 		for (uint8_t led=0; led < 7; led ++) {
-			channelVal[mod][led] = ( _data[c] | (_data[c+1] << 8) );
+			if (man)
+				setupData.overrideVal[mod][led] = ( _data[c] | (_data[c+1] << 8) );
+			else
+				channelVal[mod][led] = ( _data[c] | (_data[c+1] << 8) );
 			c = c+2;
 		}
 	}
+
 	redraw = true;
 }
 
@@ -187,18 +208,18 @@ void move(){
 
 void sendOverrideValue(int16_t value){
 
-	int8_t intValue;
+	uint8_t intValue;
 
     if(!ledValuesOK && !ledLowValuesOK){
     	intValue = LOW_BYTE(value);
-        uart_writeB((uint8_t *) intValue,sizeof(intValue));
+        uart_writeB(&intValue,sizeof(intValue));
     }else{
         ledLowValuesOK = true;
         ledValuesOK = false;
     }
     if(ledLowValuesOK && !ledValuesOK && !ledHighValuesOK){
     	intValue = HIGH_BYTE(value);
-    	uart_writeB((uint8_t *) intValue,sizeof(intValue));
+    	uart_writeB(&intValue,sizeof(intValue));
     }else{
         ledHighValuesOK = true;
         ledValuesOK = false;
@@ -209,6 +230,10 @@ void sendOverrideValue(int16_t value){
 }
 
 void handleWifiData() {
+
+#ifdef DEBUG
+	printUartPacket();
+#endif
 
 	if (!isUartData) {
 		uart_cmd = (uart_data[0]);
@@ -247,17 +272,11 @@ void handleWifiData() {
 				uDataIsComplete = false;
 				uart_DataLength = (uart_data[2] << 8) | uart_data[1];
 				uDataLength = uart_DataLength;
+				wifiState = (wifiState_t)uart_data[0];
 				break;
 			case ledManual_s:
 				if ((uart_data[1] == 'O') && (uart_data[2] == 'K') ) {
 					wifiState = ledValues;
-				}
-				wifiClear = true;
-				break;
-			case ledManualOverride_s:
-				if ((uart_data[1] == 'O') && (uart_data[2] == 'K') ) {
-					wifiState = ledManual;
-					ledValuesOK = true;
 				}
 				wifiClear = true;
 				break;
@@ -284,6 +303,7 @@ void handleWifiData() {
 						wifiState = none;
 						break;
 					default:
+						dprint("DEFAULT");
 						wifiState = (wifiState_t)uart_cmd;
 						_bytes = 0;
 						isUartData = true;
@@ -348,64 +368,85 @@ void handleWifiData() {
 }
 
 void sendWiFiCommand() {
-	char tmpbuff[12];
+	char tmpbuff[9];
+	memset((void*)tmpbuff, 0,9);
+	uint16_t crc;
 	switch (wifiState) {
 		case ping:
-			uart_write(PING);
+			sprintf(tmpbuff,PING);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = ping_s;
 			wifiClear = false;
+			dprint("ping_s:\n");
 			break;
 		case time:
-			uart_write(GETTIME);
+			sprintf(tmpbuff,GETTIME);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = time_s;
 			wifiClear = false;
+			dprint("time_s\n");
 			break;
 		case config:
 			if (RTC.getStatus()) unixtime.time = 0; else  unixtime.time = RTC.now().unixtime();
 			sprintf(tmpbuff,GETCONFIG,modulesCount, unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
 			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = config_s;
 			wifiClear = false;
+			dprint("config_s\n");
 			break;
 		case ledValues:
-			uart_write(GETLEDVALUES);
+			sprintf(tmpbuff,GETLEDVALUES);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
+
 			wifiState = ledTimeSlots_s;
 			wifiClear = false;
+			dprint("ledTimeSlots_s\n");
 			break;
 		case netInfo:
-			uart_write(GETNETVALUES);
+			sprintf(tmpbuff,GETNETVALUES);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = netInfo_s;
 			wifiClear = false;
+			dprint("netInfo_s\n");
 			break;
 		case ledManual:
-			sprintf(tmpbuff,LEDMANUAL,override,sizeof(setupData.overrideVal));
-			uart_write(tmpbuff);
+			sprintf(tmpbuff,LEDMANUAL,override);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = ledManual_s;
-			///TODO: send led values
+			dprint("ledManual_s\n");
 			if (override) {
-				wifiState = ledManualOverride_s;
-
-				uint8_t tmp[8];
-				tmp[0] = LOW_BYTE(setupData.overrideVal[0][0]);
-				tmp[1] = HIGH_BYTE(setupData.overrideVal[0][0]);
-				tmp[2] = LOW_BYTE(setupData.overrideVal[0][1]);
-				tmp[3] = HIGH_BYTE(setupData.overrideVal[0][1]);
-				tmp[4] = LOW_BYTE(setupData.overrideVal[0][2]);
-				tmp[5] = HIGH_BYTE(setupData.overrideVal[0][2]);
-
-				uint16_t crc = checkCrc(tmp, false); //vypocet
-				tmp[6] = LOW_BYTE(crc);
-				tmp[7] = HIGH_BYTE(crc);
-
-				//sendOverrideValue(setupData.overrideVal[override_x][override_y]);
-				uart_writeB(tmp,8);
+				///TODO: send led values
+				//uart_writeB((uint8_t*)setupData.overrideVal,sizeof(setupData.overrideVal));
 			}
 			wifiClear = false;
 			break;
 		case ledOff:
-			uart_write(LEDOFF);
+			sprintf(tmpbuff,LEDOFF);
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *)tmpbuff,8);
 			wifiState = ledOff_s;
 			wifiClear = false;
+			dprint("ledOff_s\n");
 			break;
 
 		default:
@@ -415,9 +456,6 @@ void sendWiFiCommand() {
 
 void wifiFound() {
 	isWiFi = true;
-	tft_setFont(Icon16x16);
-	tft_setColor(VGA_YELLOW);
-	tft_print(wifi[2],84+16,0);
 }
 
 void setTimeFromWiFi(uint8_t *data) {
@@ -432,13 +470,24 @@ void setTimeFromWiFi(uint8_t *data) {
 }
 
 /*
- *  if r = true, check crc, other compute
+ *
  */
-uint16_t checkCrc(uint8_t *data, bool r) {
+uint16_t checkCrc(uint8_t *data) {
 
-	uint16_t crc = r?0xffff:0;
+	uint16_t crc = 0xffff;
 
 	for (uint8_t i = 0; i < 8; i++) {
+		crc = crc16_update(crc, data[i]);
+	}
+	return crc;
+}
+
+
+uint16_t getCrc(char *data) {
+
+	uint16_t crc = 0xffff;
+
+	for (uint8_t i = 0; i < 6; i++) {
 		crc = crc16_update(crc, data[i]);
 	}
 	return crc;
@@ -644,7 +693,7 @@ static void tftBackg() {
 
 static void tftClearWin(const char *title) {
     tft_setColor(VGA_BLACK); tft_fillRect(0, 28, 256, 239);
-    tft_setFont(Retro8x16);tft_setColor(VGA_GREEN);tft_print(title, 256-(16*8), 30);
+    tft_setFont(Font8x16);tft_setColor(VGA_GREEN);tft_print(title, 256-(16*8), 30);
 }
 
 /*
@@ -656,10 +705,16 @@ static void tftClearWin(const char *title) {
 static void drawStatusBar() {
 	char tmpStr[5];
 
+	if (isWiFi) {
+		tft_setFont(Icon16x16);
+		tft_setColor(VGA_YELLOW);
+		tft_print(wifi[2],0,30);
+	}
+
 	tft_setColor(VGA_WHITE);
-	tft_setFont(Retro8x16);;
+	tft_setFont(Font8x16);;
 	sprintf(tmpStr,"\\ % 2d",modulesCount);
-	tft_print(tmpStr,0,30);
+	tft_print(tmpStr,20,30);
 	printTemperature();
 	tft_setColor(VGA_WHITE); tft_drawVLine(4*8+4,30,15);
 }
@@ -671,12 +726,12 @@ static void drawStatusBar() {
 
 static void drawLightChart() {
 
-	tft_setFont(Retro8x16);
+	tft_setFont(Font8x16);
 	tft_setColor(VGA_GREEN);
 	//modules info
 	char s[2];
 	s[0]=modulesCount>0?64+selMod:'X';s[1]='\0';
-	tft_print(s,12*8,30);
+	tft_print(s,20+12*8,30);
 
 	if (override) {
 		tft_print(P(MANUAL),256-(16*8), 30);
@@ -710,6 +765,8 @@ static void drawLightChart() {
 	tft_drawHLine(8,209,246);
 }
 
+
+
 /*
  * Zobrazi nastaveni wifi
  * ip adresu , nazev site a heslo
@@ -718,15 +775,12 @@ static void drawLightChart() {
 static void settings(int16_t value, ClickEncoder::Button b) {
 	static int8_t menuPos = -1;
     static bool edit = false;
-    static uint16_t color = VGA_WHITE;
 
     //reset menu
     if (resetMenu) {
 		//staticke promenne na inicializacni hodnotu
     	menuPos = -1;
     	edit = false;
-		color = VGA_WHITE;
-
 		//vypneme priznak, ze jsme v menu
 		selMenu = MENU_OFF;
 
@@ -762,11 +816,11 @@ static void settings(int16_t value, ClickEncoder::Button b) {
 
 	char tempStr[33]; //(max delka ssid je 32 char)
 	//zobrazeni
-	tft_setFont(Retro8x16);
+	tft_setFont(Font8x16);
 	tft_setColor(VGA_GRAY);
 	//TODO zobrazeni: WiFi network, password, ip adresa, url
-	sprintf(tempStr,P(NET1),ip[0],ip[1],ip[2],ip[3]);
-	//tft_print(s,12*8,30);
+	sprintf(tempStr,"%3d.%3d.%3d.%3d",ip[0],ip[1],ip[2],ip[3]);
+	tft_print(tempStr,0,60);
 
 }
 
@@ -895,7 +949,7 @@ static void setTime(int16_t value, ClickEncoder::Button b) {
 
 	char tempStr[9];
 		//zobrazeni
-		tft_setFont(Retro8x16);
+		tft_setFont(Font8x16);
 		tft_setColor(VGA_GRAY);tft_print(P(DTFORMAT),10,52);
 		switch (setupData.dt_fmt) {
 			case 0:
@@ -1007,7 +1061,6 @@ static void setManual(int16_t value, ClickEncoder::Button b ) {
 	//prvni vstup,
 	if (menuPos < 0) {
 		override = true;
-		wifiState = ledManual;
 		menuPos = 1;
 		clearMenu();
 		drawMenu(MENU_OFF,MENUEDIT);
@@ -1070,7 +1123,6 @@ static void setManual(int16_t value, ClickEncoder::Button b ) {
 			override = true;
 			resetMenu = true;
 			wifiState = ledManual;
-			//TODO: send to wifi module
 		} else {
 			edit = !edit; if (edit) color = VGA_YELLOW; else color = VGA_WHITE;
 		}
@@ -1078,7 +1130,7 @@ static void setManual(int16_t value, ClickEncoder::Button b ) {
 
 	if ( value != 0) drawLightChart();
 
-	tft_setFont(Retro8x16);
+	tft_setFont(Font8x16);
 	for (uint8_t i=0; i<CHANNELS; i++) {
 		sprintf(tempStr,"%4d",setupData.overrideVal[m][i]);
 		tft_setColor(menuPos==i+2?color:ILI9341_DARKGREY); tft_print(tempStr,8+(i*32)+(i*3),222);
@@ -1096,7 +1148,7 @@ static void  searchSlave() {
 	  memset(slaveAddr,255,16);
 	  for(address = 0x10; address <= 0x40; address++) {
 		twi_begin_transmission(address);
-			twi_send_byte(16); //register
+			twi_send_byte(reg_MASTER); //register
 			twi_send_byte(0xff); //value 0xFF = controller presence
 	    error = twi_end_transmission();
 
@@ -1117,6 +1169,8 @@ static void  searchSlave() {
 
 static void sendValue(uint8_t address, int8_t m) {
 
+	uint8_t error = 0;
+
 	//remap led position
 	#define c_white  0
 	#define c_uv     1
@@ -1126,38 +1180,152 @@ static void sendValue(uint8_t address, int8_t m) {
 	#define c_red    5
 	#define c_yellow 6
 
+	//uint8_t led_colors[CHANNELS] = {c_rb,c_white,c_green,c_red,c_green,c_red,c_uv};
+
 	uint16_t crc = 0xffff;
-#define CRC(x)  crc = crc16_update(crc,LOW_BYTE(channelVal[m][x]));crc = crc16_update(crc,HIGH_BYTE(channelVal[m][x]))
-	CRC(c_rb); CRC(c_white); CRC(c_blue);
-	CRC(c_yellow); CRC(c_green); CRC(c_red); CRC(c_uv);
+//#ifndef DEBUG
+
+//#define CRC(x)  crc = crc16_update(crc,LOW_BYTE(override?setupData.overrideVal[m][x]:channelVal[m][x]));crc = crc16_update(crc,HIGH_BYTE(override?setupData.overrideVal[m][x]:channelVal[m][x]))
+//#define SEND(color)  twi_send_byte(HIGH_BYTE(override?setupData.overrideVal[m][color]:channelVal[m][color])); twi_send_byte(LOW_BYTE(override?setupData.overrideVal[m][color]:channelVal[m][color]))
+
+/*#else
+
+#define CRC(x)  crc = crc16_update(crc,1);crc = crc16_update(crc,0)
+#define SEND(color)  twi_send_byte(0); twi_send_byte(1)
+
+#endif*/
+
+#ifdef DEBUG
+	char tempStr [30];
+    tft_clrScr();
+#endif
+
+	twi_begin_transmission(address);
+	twi_send_byte(reg_LED_START); //register address
+
+	for (uint8_t x=0; x < CHANNELS; x++) {
+
+
+		uint16_t c_val = override?setupData.overrideVal[m][x]:channelVal[m][x];
+		uint8_t lb = LOW_BYTE(c_val);
+		uint8_t hb = HIGH_BYTE(c_val);
+
+		crc = crc16_update(crc,lb);
+		crc = crc16_update(crc,hb);
+
+#ifdef DEBUG
+		sprintf(tempStr,"%d: %d - %d - %d",setupData.overrideVal[m][x],hb,lb);
+		tft_println(tempStr);
+#endif
+		twi_send_byte(hb);
+		twi_send_byte(lb);
+
+
+		twi_send_byte(HIGH_BYTE(override?setupData.overrideVal[m][x]:channelVal[m][x]));
+		twi_send_byte(LOW_BYTE(override?setupData.overrideVal[m][x]:channelVal[m][x]));
+
+	}
+
+
+/*
+	CRC(led_colors[0]);
+	CRC(led_colors[1]);
+	CRC(led_colors[2]);
+	CRC(led_colors[3]);
+	CRC(led_colors[4]);
+	CRC(led_colors[5]);
+	CRC(led_colors[6]);
 
 	//register 0 , 7x 2B channel values
 	twi_begin_transmission(address);
-	twi_send_byte(0); //register address
+	twi_send_byte(reg_LED_START); //register address
 	//send channel values
-#define SEND(color)  twi_send_byte(HIGH_BYTE(channelVal[m][color])); twi_send_byte(LOW_BYTE(channelVal[m][color]))
-	SEND(c_rb);SEND(c_white); SEND(c_blue);
-	SEND(c_yellow); SEND(c_green); SEND(c_red); SEND(c_uv);
+
+
+	SEND(led_colors[0]);
+	SEND(led_colors[1]);
+	SEND(led_colors[2]);
+	SEND(led_colors[3]);
+	SEND(led_colors[4]);
+	SEND(led_colors[5]);
+	SEND(led_colors[6]);
+*/
 
 	//crc
 	twi_send_byte(HIGH_BYTE(crc)); twi_send_byte(LOW_BYTE(crc));
+	error = twi_end_transmission();
 
-	twi_end_transmission();
+	twi_begin_transmission(address);
+	twi_send_byte(reg_DATA_OK); //register address
+	twi_send_byte(error);
+	error = twi_end_transmission();
+
+
+#ifdef DEBUG
+	/*
+	_delay_ms(50);
+	char tempStr [30];
+	if (error == 0) tft_println("SUCCESS");
+	uint16_t temp;
+
+	uint8_t temp1=0x00;
+	uint8_t temp2=0x00;
+
+	twi_begin_transmission(address);
+	twi_send_byte(reg_LED_0);
+	error = twi_end_transmission();
+
+	uint8_t cnt = twi_request_from(address, 14);
+
+	uint8_t x=0;
+    if (cnt > 13) {
+    	while (twi_available) {
+    		BYTEHIGH(temp) = twi_receive();
+    		BYTELOW(temp) = twi_receive();
+			sprintf(tempStr,"%d: %04d-%04d-0x%04x",x,override?setupData.overrideVal[m][led_colors[x]]:channelVal[m][led_colors[x]],temp,temp);
+			tft_println(tempStr);
+			x++;
+    	}
+	}
+
+    twi_begin_transmission(address);
+	twi_send_byte(reg_CRC);
+	error = twi_end_transmission();
+
+	cnt = twi_request_from(address, 2);
+
+    if (cnt > 1) {
+		temp1 = twi_receive();
+		temp2 = twi_receive();
+	}
+
+	sprintf(tempStr,"0x%02x:0x%02x-0x%02x:0x%02x",BYTEHIGH(crc),BYTELOW(crc),temp1, temp2);
+	tft_println(tempStr);
+*/
+#endif
 
 }
 
 static uint8_t readTemperature(uint8_t address) {
+	uint8_t ret = 0;
 	uint8_t temp=0xff;
+	uint8_t temp_status=0xee;
 
 	twi_begin_transmission(address);
-	twi_send_byte(18);
+	twi_send_byte(reg_THERM_STATUS);
 	twi_end_transmission();
 
-	twi_request_from(address, 1);
-	temp = twi_receive();
-	twi_end_transmission();
+	uint8_t cnt = twi_request_from(address, 2);
+	if (cnt > 1) {
+		temp_status = twi_receive();
+		temp = twi_receive();
+	}
 
-	return temp;
+	if (temp_status) {
+		ret  = temp;
+	}
+
+	return ret;
 }
 
 void printTemperature() {
@@ -1165,14 +1333,14 @@ void printTemperature() {
 	uint8_t temp = 0;
 	char tmpStr[8];
 
-	tft_setFont(Retro8x16);
+	tft_setFont(Font8x16);
 
 	if (modulesCount > 0) {
 		temp = 	readTemperature(slaveAddr[selMod-1]);
 	}
 
 #ifdef DEBUG
-    temp = 36;
+    //temp = 36;
 #endif
 
 	if (temp < 30) tft_setColor(VGA_GREEN);
@@ -1180,10 +1348,10 @@ void printTemperature() {
 			tft_setColor(VGA_YELLOW);
 				else tft_setColor(VGA_RED);
 	if (temp == 0) {
-		tft_print("^ - ~",5*8,30);
+		tft_print("^ - ~",20+5*8,30);
 	} else {
 		sprintf(tmpStr,"^ %2d~",temp);
-		tft_print(tmpStr,5*8,30);
+		tft_print(tmpStr,20+5*8,30);
 	}
 }
 
@@ -1212,7 +1380,7 @@ int main(void) {
 	uart_init();
 
 	encoder = new ClickEncoder(4);
-	//enc_init();
+
 	sei();
 
 	//spi
@@ -1226,18 +1394,6 @@ int main(void) {
 	tft_setRotation(3);
     tft_clrScr();
 
-	//wait for wifi
-
-    tft_setColor(VGA_PURPLE);
-    tft_setFont(nereus);
-    tft_print("012134",64,64);
-
-    for (uint8_t i=0; i<7; i++) {
-    	tft_setColor(colors[i]);
-    	tft_fillRect(64,130+(i*3),64+186,130+(i*3)+3);
-    	_delay_ms(2000);
-    }
-
 
     tft_clrScr();
     tft_setColor(VGA_WHITE);
@@ -1248,9 +1404,22 @@ int main(void) {
 	//Search slave modules
     tft_println("Search ...");
 	searchSlave();
+
 #ifdef DEBUG
-	modulesCount = 1;
+	if (modulesCount < 1) modulesCount = 1;
 #endif
+
+	//wait for wifi/*
+    tft_setColor(VGA_PURPLE);
+    tft_setFont(nereus);
+    tft_print("012134",64,64);
+
+    for (uint8_t i=0; i<7; i++) {
+    	tft_setColor(colors[i]);
+    	tft_fillRect(64,130+(i*3),64+186,130+(i*3)+3);
+    	_delay_ms(3000);
+    }
+
 	readSetupData();
 
 
@@ -1292,12 +1461,17 @@ int main(void) {
 		if (uart_available()) { //paket ceka na zpracovani
 			memcpy((void*)uart_data,(void*)uart_getPckt(),8); //precteme 8 byte z bufferu
 			uint16_t crc = checkCrc(uart_data); //kontrola CRC
+
 			if (crc == 0 ) { //crc je ok,
 				handleWifiData();  //zpracujeme dat
 				uart_putB(0x14);uart_putB(0x10); // a odpovime OK
 			} else {
+				#ifdef DEBUG
+					printUartPacket();
+				#endif
 				uart_putB(0x10);uart_putB(0x10); // vratime chybu
-				tft_println(P(CRC_ERROR));
+				dprint("crc error\n"); //tft_println(P(CRC_ERROR));
+				clearData();
 			}
 		} //konec obsluhy UART
 
@@ -1305,19 +1479,26 @@ int main(void) {
 		if ( (!wifiClear) && ((millis() - uartTimeout) > UARTTIMEOUT)) {
 			wifiClear = true;
 			wifiState = none;
+			char tmp[30];
+			sprintf(tmp,"tout: %lu\n",(millis() - uartTimeout));
+			dprint(tmp);
+			clearData();
+			uartTimeout = millis();
 		}
 
 		//process ledvalues
-		if ((currentTime - timeStamp03) >= LEDINTERVAL) {
+		if ((millis() - timeStamp03) >= LEDINTERVAL) {
 			if (wifiClear && !override) wifiState = ledValues;
+
 			timeStamp03 = millis();
+
 			for (uint8_t m = 0; m < modulesCount; m++) {
 				sendValue(slaveAddr[m],m);
 			}
 		}
 
 		//display time
-		if ((currentTime - timeStamp01) >= SECINTERVAL) {
+		if ((millis() - timeStamp01) >= SECINTERVAL) {
 
  	 	    t = RTC.now();
  	 	    if (lcdTimeout > 0 ) {
@@ -1330,8 +1511,11 @@ int main(void) {
 		}
 
 		//display values
-		if (((currentTime - timeStamp02) >= LCDREFRESH) || (redraw) ){
-			if (selMenu == 0 ) drawLightChart();
+		if (((millis() - timeStamp02) >= LCDREFRESH) || (redraw) ){
+
+
+		if (selMenu == 0 ) drawLightChart();
+
 			drawStatusBar();
 			redraw = false;
 			timeStamp02 = millis();
@@ -1378,6 +1562,7 @@ int main(void) {
 			//vykresleni obrazovky
 			switch (menuItem) {
 				case MENU_PREF:
+					wifiState = netInfo;
 					tftClearWin(P(SETTINGS));
 					break;
 				case MENU_TIME:
@@ -1397,14 +1582,12 @@ int main(void) {
 			switch (selMenu) {
 				case MENU_PREF:
 					settings(value-last, b);
-					wifiState = netInfo;
 					break;
 				case MENU_TIME:
 					setTime(value-last, b);
 					break;
 				case MENU_MANUAL:
 					setManual(value-last, b);
-
 					break;
 				case MENU_LEDOFF:
 					manualOFF = !manualOFF;

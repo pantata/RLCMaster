@@ -16,7 +16,7 @@
 
 #if DBG_UART_ENABLE
 
-void dbg_puts(char *s)
+void dbg_puts(const char *s)
 {
         while(*s) dbg_putchar(*s++);
 
