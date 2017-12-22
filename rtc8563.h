@@ -43,7 +43,9 @@ public:
     static uint8_t begin(void);
     static void adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss);
     static uint8_t isrunning(void);
-    static uint8_t getStatus(void);
+    //static uint8_t getStatus(void);
+    static void clearAlarmStatus();
+    static uint8_t getVLStatus();
     static DateTime now();
 
 private:

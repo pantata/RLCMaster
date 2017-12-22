@@ -17,6 +17,8 @@
 #define LEDMANUAL    "6%c\xff\xff\xff\xff\xff\xff"  //set manual, nasleduje 224 byte s hodnotami led pro kazdy kanal
 #define LEDOFF       "7\xff\xff\xff\xff\xff\xff\xff" //set manual,
 #define GETLOGO      "Z\xff\xff\xff\xff\xff\xff\xff"
+#define TEMPERATURE  "8%c%c%c%c\xff\xff\xff"
+#define VERSIONINFO  "9%c%c%c%c\xff\xff\xff"
 
 typedef enum {
 	none,
@@ -40,7 +42,11 @@ typedef enum {
 	ledManual_s,
 	change,
 	change_s,
-	reset
+	reset,
+	temperature,
+	temperature_s,
+	version,
+	version_s
 } wifiState_t;
 
 #endif /* STATE_H_ */

@@ -11,21 +11,17 @@
 #include <avr/pgmspace.h>
 #include "rtc8563.h"
 
-#define VERSION  5
+#define VERSION  101
 
 #define MODULES 16
 #define CHANNELS 7
-#define PWMSTEPS 1000
+#define PWMSTEPS 4000
 #define MAXPWMCOUNT 100
 
 #define LCDREFRESH  3000
 #define SECINTERVAL 1000
 
-//#ifdef DEBUG
-//#define LEDINTERVAL 20000
-//#else
 #define LEDINTERVAL 5000
-//#endif
 
 #define LEDSTEP 1
 
@@ -52,7 +48,7 @@
 
 RTC_8563 RTC;
 
-
+#define ERR_TEMP_READ   -128
 
 union Unixtime {
     uint32_t time;
@@ -61,7 +57,7 @@ union Unixtime {
 
 
 
-#define UARTTIMEOUT  5000L
+#define UARTTIMEOUT  1000L
 uint32_t uartTimeout = 0;
 
 wifiState_t wifiState=none;
@@ -69,6 +65,7 @@ wifiState_t wifiState=none;
 union Unixtime unixtime;
 
 uint8_t slaveAddr[16];
+int8_t slaveTempc[16];
 uint8_t modulesCount = 0;
 
 uint8_t ip[4] = {0,0,0,0};
@@ -123,6 +120,9 @@ uint16_t _bytes = 0;
 uint8_t _address = 0;
 int8_t lcdTimeout;
 int8_t menuTimeout;
+uint8_t dt_fmt;
+uint8_t tm_fmt;
+bool useDST;
 
 //FUNKCE
 void wifiFound();

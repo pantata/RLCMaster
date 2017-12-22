@@ -153,14 +153,14 @@ static uint8_t bin2bcd (uint8_t val) { return ((val/10*16) + (val%10)); }
 uint8_t RTC_8563::status;
 
 uint8_t RTC_8563::begin(void) {
-	status = 1;
+	status = getVLStatus();
     return isrunning();
 }
 
 
 uint8_t RTC_8563::isrunning(void) {
 	twi_begin_transmission(Rtcc_Addr);
-	twi_send_byte(i);
+	twi_send_byte(0);
 	twi_end_transmission();
 
 	twi_request_from(Rtcc_Addr, 1);
@@ -168,8 +168,26 @@ uint8_t RTC_8563::isrunning(void) {
     return !(ss>>5);
 }
 
-uint8_t RTC_8563::getStatus(void) {
-    return status;
+/*
+ * return 1 if LV bit is set, ) 0 if OK
+ */
+
+uint8_t RTC_8563::getVLStatus(void) {
+	uint8_t vl=0;
+	twi_begin_transmission(Rtcc_Addr);
+	twi_send_byte(RTCC_SEC_ADDR);
+	twi_end_transmission();
+	twi_request_from(Rtcc_Addr, 1);
+	vl = twi_receive();
+    return (vl >> 7);
+}
+
+void RTC_8563::clearAlarmStatus() {
+	twi_begin_transmission(Rtcc_Addr);	// Issue I2C start signal
+	twi_send_byte(0x0);
+	twi_send_byte(0x0); 				//control/status1
+	twi_send_byte(0x0); 				//control/status2
+	twi_end_transmission();
 }
 
 void RTC_8563::adjust(uint8_t yy, uint8_t mo, uint8_t dd, uint8_t hh, uint8_t mi, uint8_t ss) {
