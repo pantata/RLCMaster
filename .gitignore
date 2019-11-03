@@ -1,8 +1,6 @@
-Binaries
-Release
-/.project
-core
-.settings
-/.cproject
-/.DS_Store
-/Debug/
+.pioenvs
+.piolibdeps
+.vscode/
+.travis.yml
+.pio/build
+.DS_Store

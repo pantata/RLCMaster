@@ -11,7 +11,8 @@
 #include <avr/pgmspace.h>
 #include "rtc8563.h"
 
-#define VERSION  101
+#define MAINVERSION  1
+#define VERSION      102
 
 #define MODULES 16
 #define CHANNELS 7
@@ -65,6 +66,7 @@ wifiState_t wifiState=none;
 union Unixtime unixtime;
 
 uint8_t slaveAddr[16];
+uint16_t slaveVersion[16];
 int8_t slaveTempc[16];
 uint8_t modulesCount = 0;
 
@@ -99,6 +101,7 @@ bool isWiFi = false;
 
 //LED
 int16_t channelVal[MODULES][CHANNELS]; //16x7x2
+uint8_t getValFromWiFi = 0;
 
 bool override = false;
 bool manualOFF = false;

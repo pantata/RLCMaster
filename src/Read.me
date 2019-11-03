@@ -1,0 +1,15 @@
+hex to firmware bin:
+avr-objcopy -I ihex firmware.hex -O binary firmware.bin
+
+
+upload:
+curl -F "datafile=@firmware.bin" http://192.168.1.86/upload
+
+update:
+curl http://192.168.1.86/avr.cgi
+curl http://192.168.1.86/avrstatus.cgi
+
+Ulozeni souboru na esp
+curl -F "datafile=@nereus.js.gz" http://ip/upload
+curl -F "datafile=@index.html.gz" http://ip/upload
+curl -F "datafile=@index.html.gz" http://ip/upload

@@ -174,19 +174,16 @@ void setNetInfo(uint16_t l) {
 
 void setLedVal(bool man, uint16_t l) {
 	uint16_t c = 0;
-	//TODO: doplnit manual (overrideVal)
-
 	for (uint8_t mod = 0; mod < 16; mod++) {
 		for (uint8_t led = 0; led < 7; led++) {
 			if (man)
-				setupData.overrideVal[mod][led] = (_data[c]
-						| (_data[c + 1] << 8));
+				setupData.overrideVal[mod][led] = constrain( (_data[c]
+						| (_data[c + 1] << 8)), 0 , PWMSTEPS) ;
 			else
-				channelVal[mod][led] = (_data[c] | (_data[c + 1] << 8));
+				channelVal[mod][led] = constrain( (_data[c] | (_data[c + 1] << 8)),0, PWMSTEPS) ;
 			c = c + 2;
 		}
 	}
-
 	redraw = true;
 }
 
@@ -229,10 +226,6 @@ void sendOverrideValue(int16_t value) {
 
 void handleWifiData() {
 
-#ifdef DEBUG
-	printUartPacket();
-#endif
-
 	if (!isUartData) {
 		uart_cmd = (uart_data[0]);
 		switch (wifiState) {
@@ -261,7 +254,7 @@ void handleWifiData() {
 		case time_s:
 			setTimeFromWiFi(uart_data);
 			wifiClear = true;
-			wifiState = none;
+			wifiState = version;
 			break;
 		case ledTimeSlots_s:
 			//nasleduji data
@@ -304,10 +297,10 @@ void handleWifiData() {
 				wifiClear = true;
 				wifiState = none;
 				break;
-			case time_s:
+			case time:
 				setTimeFromWiFi(uart_data);
 				wifiClear = true;
-				wifiState = version;
+				wifiState = none;
 				break;
 			case version_s:
 				isUartData = false;
@@ -320,7 +313,6 @@ void handleWifiData() {
 				wifiState = temperature;
 				break;
 			default:
-				dprint("DEFAULT");
 				wifiState = (wifiState_t) uart_cmd;
 				_bytes = 0;
 				isUartData = true;
@@ -359,24 +351,22 @@ void handleWifiData() {
 			case config_s:
 				setConfigFromWifi();
 				wifiState = time;
-				wifiClear = true;
 				break;
 			case ledTimeSlots_s: //aktualni timeslot hodnoty
 				override = false;
-				wifiState = none;
-				wifiClear = true;
+				wifiState = temperature;
 				setLedVal(false, uart_DataLength);
+				getValFromWiFi = 1;
 				break;
 			case ledValues_s: //hodnoty led z manualniho nastaveni
 				override = true;
 				setLedVal(true, uart_DataLength);
 				wifiState = none;
-				wifiClear = true;
+				getValFromWiFi = 1;
 				break;
 			case netInfo_s:
 				setNetInfo(uart_DataLength);
 				wifiState = none;
-				wifiClear = true;
 				break;
 			default:
 				break;
@@ -385,143 +375,126 @@ void handleWifiData() {
 	}
 }
 
-void sendVersion() {
-
-	char tmpbuff[9];
-	sprintf(tmpbuff, VERSIONINFO, 0, setupData.version, 0xff, 0xff);
-	uint16_t crc = getCrc(tmpbuff);
-	tmpbuff[6] = LOW_BYTE(crc);
-	tmpbuff[7] = HIGH_BYTE(crc);
-	uart_writeB((uint8_t *) tmpbuff, 8);
-
-	uint16_t ver[MODULES] = { 0 };
-
-	for (uint8_t i = 0; i<modulesCount; i++) {
-		ver[i] = readSlaveVersion(slaveAddr[i]);
-	}
-
-	for (uint8_t i = 0;i<MODULES;i = i+2) {
-		sprintf(tmpbuff, VERSIONINFO, HIGH_BYTE(ver[i]),LOW_BYTE(ver[i]),HIGH_BYTE(ver[i+1]),LOW_BYTE(ver[i+1]));
-		crc = getCrc(tmpbuff);
-		tmpbuff[6] = LOW_BYTE(crc);
-		tmpbuff[7] = HIGH_BYTE(crc);
-		uart_writeB((uint8_t *) tmpbuff, 8);
-	}
-}
-
-void sendTemperature() {
-
-	char tmpbuff[8];
-
-	for (uint8_t i=0;i<modulesCount; i=i+4) {
-		sprintf(tmpbuff, TEMPERATURE, slaveTempc[i],slaveTempc[i+1],slaveTempc[i+2],slaveTempc[i+3]);
-		uint16_t crc = getCrc(tmpbuff);
-		tmpbuff[6] = LOW_BYTE(crc);
-		tmpbuff[7] = HIGH_BYTE(crc);
-		uart_writeB((uint8_t *) tmpbuff, 8);
-	}
-}
-
 void sendWiFiCommand() {
-	char tmpbuff[9];
-	memset((void*) tmpbuff, 0, 9);
+	char tmpbuff[8] = { 0 };
 	uint16_t crc;
 	switch (wifiState) {
 	case ping:
-		sprintf(tmpbuff, PING);
+		tmpbuff[0] = PING;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
 		wifiState = ping_s;
 		wifiClear = false;
-		dprint("ping_s:\n")
-		;
 		break;
 	case time:
-		sprintf(tmpbuff, GETTIME);
+		tmpbuff[0] = GETTIME;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
 		wifiState = time_s;
 		wifiClear = false;
-		dprint("time_s\n")
-		;
 		break;
 	case config:
 		if (RTC.getVLStatus())
 			unixtime.time = 0;
 		else
 			unixtime.time = RTC.now().unixtime();
-		sprintf(tmpbuff, GETCONFIG, modulesCount, unixtime.btime[0],
-				unixtime.btime[1], unixtime.btime[2], unixtime.btime[3]);
+		tmpbuff[0] = GETCONFIG;
+		tmpbuff[1] = modulesCount;
+		tmpbuff[2] = unixtime.btime[0];
+		tmpbuff[3] = unixtime.btime[1];
+		tmpbuff[4] = unixtime.btime[2];
+		tmpbuff[5] = unixtime.btime[3];
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
 		wifiState = config_s;
 		wifiClear = false;
-		dprint("config_s\n")
-		;
 		break;
 	case ledValues:
-		sprintf(tmpbuff, GETLEDVALUES);
+		tmpbuff[0] = GETLEDVALUES;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
-
 		wifiState = ledTimeSlots_s;
 		wifiClear = false;
-		dprint("ledTimeSlots_s\n")
-		;
 		break;
 	case netInfo:
-		sprintf(tmpbuff, GETNETVALUES);
+		tmpbuff[0] = GETNETVALUES;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
 		wifiState = netInfo_s;
 		wifiClear = false;
-		dprint("netInfo_s\n")
-		;
 		break;
 	case ledManual:
-		sprintf(tmpbuff, LEDMANUAL, override);
+		tmpbuff[0] = LEDMANUAL;
+		tmpbuff[1] = override;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
 		wifiState = ledManual_s;
-		dprint("ledManual_s\n")
-		;
 		if (override) {
+			;
 			///TODO: send led values
 			//uart_writeB((uint8_t*)setupData.overrideVal,sizeof(setupData.overrideVal));
 		}
 		wifiClear = false;
 		break;
 	case ledOff:
-		sprintf(tmpbuff, LEDOFF);
+		tmpbuff[0] = LEDOFF;
 		crc = getCrc(tmpbuff);
 		tmpbuff[6] = LOW_BYTE(crc);
 		tmpbuff[7] = HIGH_BYTE(crc);
 		uart_writeB((uint8_t *) tmpbuff, 8);
-		wifiState = ledOff_s;
-		wifiClear = false;
-		dprint("ledOff_s\n")
-		;
-		break;
-	case temperature:
-		sendTemperature();
 		wifiState = none;
 		wifiClear = true;
-		dprint("temperature\n");
+		break;
+	case temperature:
+		for (uint8_t i=0;i<modulesCount; i=i+4) {
+			tmpbuff[0] = TEMPERATUREINFO;
+			tmpbuff[1] = slaveTempc[i];
+			tmpbuff[2] = slaveTempc[i+1];
+			tmpbuff[3] = slaveTempc[i+2];
+			tmpbuff[4] = slaveTempc[i+3];
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *) tmpbuff, 8);
+		}
+		wifiState = none;
+		wifiClear = true;
 		break;
 	case version:
-		sendVersion();
+		//master version
+		tmpbuff[0] = VERSIONINFO;
+		tmpbuff[1] = MAINVERSION;
+		tmpbuff[2] = VERSION;
+		crc = getCrc(tmpbuff);
+		tmpbuff[6] = LOW_BYTE(crc);
+		tmpbuff[7] = HIGH_BYTE(crc);
+		uart_writeB((uint8_t *) tmpbuff, 8);
+
+		//slave version
+		for (uint8_t i = 0; i<MODULES; i= i+2) {
+			tmpbuff[0] = VERSIONINFO;
+			tmpbuff[1] = HIGH_BYTE(slaveVersion[i]);
+			tmpbuff[2] = LOW_BYTE(slaveVersion[i]);
+			tmpbuff[3] = HIGH_BYTE(slaveVersion[i+1]);
+			tmpbuff[4] = LOW_BYTE(slaveVersion[i+1]);
+			tmpbuff[5] = 0xff;
+			crc = getCrc(tmpbuff);
+			tmpbuff[6] = LOW_BYTE(crc);
+			tmpbuff[7] = HIGH_BYTE(crc);
+			uart_writeB((uint8_t *) tmpbuff, 8);
+		}
 		wifiState = none;
 		wifiClear = true;
 		break;
@@ -588,8 +561,6 @@ static unsigned long getSetupDataSum() {
  */
 static void saveSetupData() {
 
-	setupData.version = VERSION;
-
 	unsigned long newSum = getSetupDataSum();
 	if (newSum != lastSetupDataSum) {
 		eeprom_update_block(&setupData, (void *) 0, sizeof(setupData));
@@ -616,6 +587,7 @@ static void readSetupData() {
 		setupData.tm_fmt = 0;
 		setupData.dt_fmt = 0;
 		setupData.version = VERSION;
+		saveSetupData();
 	}
 }
 
@@ -805,13 +777,13 @@ static void drawStatusBar() {
 		tft_print(wifi[2], 0, 30);
 	}
 
-	//dle stavu zobray low baterii
+	//dle stavu zobraz low baterii
 	if (RTC.getVLStatus()) {
 		tft_setColor(VGA_RED);
 	} else {
 		tft_setColor(VGA_GREEN);
 	}
-	tft_print(BATTERY,160,0);
+	tft_print(BATTERY[0],160,0);
 
 	tft_setColor(VGA_WHITE);
 	tft_setFont(Font8x16);
@@ -935,8 +907,7 @@ static void settings(int16_t value, ClickEncoder::Button b) {
 	tft_print(tempStr, 0, 60+16);
 	//vypiseme adresy modulu a jejich verzi fw
 	for (uint8_t m=0; m< modulesCount; m++) {
-		uint16_t v = readSlaveVersion(slaveAddr[m]);
-		sprintf(tempStr,"%c:0x%2xh fw:%03d-%03d",65+m, slaveAddr[m],LOW_BYTE(v),HIGH_BYTE(v));
+		sprintf(tempStr,"%c:0x%2xh fw:%03d-%03d",65+m, slaveAddr[m],LOW_BYTE(slaveVersion[m]),HIGH_BYTE(slaveVersion[m]));
 		tft_print(tempStr, 0, 60+(32*(m+1)));
 	}
 }
@@ -1328,9 +1299,9 @@ static void setManual(int16_t value, ClickEncoder::Button b) {
 static void searchSlave() {
 	uint8_t error, address, idx = 0;
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	char tempStr[20];
-#endif
+//#endif
 
 	memset(slaveAddr, 255, 16);
 	for (address = 0x10; address <= 0x40; address++) {
@@ -1342,10 +1313,10 @@ static void searchSlave() {
 		if (error == 0) {
 			slaveAddr[idx] = address;
 			idx++;
-#ifdef DEBUG
+//#ifdef DEBUG
 			sprintf(tempStr, "%d: %03xh", idx - 1, slaveAddr[idx - 1]);
 			tft_println(tempStr);
-#endif
+//#endif
 		}
 	}
 	modulesCount = idx;
@@ -1576,8 +1547,11 @@ int main(void) {
 	if (modulesCount < 1) {
 		modulesCount = 1;
 		slaveAddr[0] = 0x10;
+	} else {
+		for (uint8_t m=0; m < modulesCount; m++) {
+			slaveVersion[m] = readSlaveVersion(slaveAddr[m]);
+		}
 	}
-
 
 	//wait for wifi/*
 	tft_setColor(VGA_PURPLE);
@@ -1648,27 +1622,21 @@ int main(void) {
 			uint16_t crc = checkCrc(uart_data); //kontrola CRC
 
 			if (crc == 0) { //crc je ok,
-				handleWifiData();  //zpracujeme dat
 				uart_putB(0x14);
 				uart_putB(0x10); // a odpovime OK
+				handleWifiData();  //zpracujeme data
 			} else {
-#ifdef DEBUG
-				printUartPacket();
-#endif
+				clearData();
 				uart_putB(0x10);
 				uart_putB(0x10); // vratime chybu
-				dprint("crc error\n"); //tft_println(P(CRC_ERROR));
-				clearData();
 			}
 		} //konec obsluhy UART
 
-		//UART TIMEOUT
+		//TODO: opravit UART TIMEOUT
+
 		if ((!wifiClear) && ((millis() - uartTimeout) > UARTTIMEOUT)) {
 			wifiClear = true;
 			wifiState = ping;
-			char tmp[30];
-			sprintf(tmp, "tout: %lu\n", (millis() - uartTimeout));
-			dprint(tmp);
 			clearData();
 			uartTimeout = millis();
 		}
@@ -1679,9 +1647,11 @@ int main(void) {
 				wifiState = ledValues;
 
 			timeStamp03 = millis();
-
-			for (uint8_t m = 0; m < modulesCount; m++) {
-				sendValue(slaveAddr[m], m);
+			if (getValFromWiFi) {
+				for (uint8_t m = 0; m < modulesCount; m++) {
+					sendValue(slaveAddr[m], m);
+				}
+				getValFromWiFi = 0;
 			}
 			//nasledne precteme a ulozime teploty z modulu
 			for (uint8_t m = 0; m < modulesCount; m++) {
